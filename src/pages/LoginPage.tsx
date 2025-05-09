@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,16 +14,23 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
     try {
-      const success = await login(email, password);
-      if (success) {
-        navigate("/dashboard");
-      }
+      await login(email, password);
+      // If login doesn't throw an error, it was successful
+      // No need to check return value
+    } catch (error) {
+      // Handle error
+      toast({
+        title: "Login Failed",
+        description: error instanceof Error ? error.message : "Please check your credentials and try again",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }

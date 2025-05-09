@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,20 +8,19 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { calculateBMI, getBMIStatus, calculateTargetWeight } from "@/utils/helpers";
 import { DailyRecord } from "@/types";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Trash2 } from "lucide-react";
+
 export default function DashboardPage() {
-  const {
-    profile
-  } = useAuth();
-  const {
-    toast
-  } = useToast();
+  const { profile, updateProfile } = useAuth();
+  const { toast } = useToast();
+  
   const [records, setRecords] = useState<DailyRecord[]>([]);
   const [dayNumber, setDayNumber] = useState(1);
   const [newWeight, setNewWeight] = useState("");
   const [exerciseDone, setExerciseDone] = useState(false);
   const [dietFollowed, setDietFollowed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
   useEffect(() => {
     // Load records from localStorage
     if (profile) {
@@ -33,6 +33,7 @@ export default function DashboardPage() {
       setNewWeight(profile.weight.toString());
     }
   }, [profile]);
+
   const handleAddRecord = (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
@@ -57,11 +58,41 @@ export default function DashboardPage() {
     // Save to localStorage
     localStorage.setItem(`health_app_records_${profile.userId}`, JSON.stringify(updatedRecords));
 
+    // Update the user's current weight
+    if (updateProfile) {
+      updateProfile({
+        ...profile,
+        weight: parseFloat(newWeight)
+      });
+      
+      toast({
+        title: "Weight Updated",
+        description: "Your current weight has been updated to " + newWeight + " kg",
+      });
+    }
+
     // Reset form
     setExerciseDone(false);
     setDietFollowed(false);
     setIsLoading(false);
   };
+
+  const handleDeleteRecord = (id: string) => {
+    // Filter out the record with the given id
+    const updatedRecords = records.filter(record => record.id !== id);
+    setRecords(updatedRecords);
+
+    // Save to localStorage
+    if (profile) {
+      localStorage.setItem(`health_app_records_${profile.userId}`, JSON.stringify(updatedRecords));
+    }
+
+    toast({
+      title: "Record Deleted",
+      description: "The record has been deleted successfully.",
+    });
+  };
+  
   const handleExportRecords = () => {
     if (!records || records.length === 0) {
       toast({
@@ -95,6 +126,7 @@ export default function DashboardPage() {
       description: "Your health records have been exported as a CSV file."
     });
   };
+
   if (!profile) return <div>Loading...</div>;
   const bmi = calculateBMI(profile.weight, profile.height);
   const bmiStatus = getBMIStatus(bmi);
@@ -107,6 +139,7 @@ export default function DashboardPage() {
     if (bmi <= 30) return 75 + (bmi - 25) / (30 - 25) * 15; // 75-90% for overweight
     return 90 + Math.min((bmi - 30) / 10 * 10, 10); // 90-100% for obese
   };
+
   return <div className="container py-8">
       <h1 className="text-3xl font-bold mb-8">Welcome, {profile.name}!</h1>
       
@@ -227,20 +260,36 @@ export default function DashboardPage() {
                     <th className="p-2 text-left">Exercise</th>
                     <th className="p-2 text-left">Diet</th>
                     <th className="p-2 text-left">Weight (kg)</th>
+                    <th className="p-2 text-left">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {records.length > 0 ? records.map(record => <tr key={record.id} className="border-b">
-                        <td className="p-2">{record.date}</td>
-                        <td className="p-2">{record.dayNumber}</td>
-                        <td className="p-2">{record.exercise ? "✓" : "✗"}</td>
-                        <td className="p-2">{record.dietFollowed ? "✓" : "✗"}</td>
-                        <td className="p-2">{record.newWeight}</td>
-                      </tr>) : <tr>
-                      <td colSpan={5} className="p-4 text-center text-muted-foreground">
+                  {records.length > 0 ? records.map(record => (
+                    <tr key={record.id} className="border-b">
+                      <td className="p-2">{record.date}</td>
+                      <td className="p-2">{record.dayNumber}</td>
+                      <td className="p-2">{record.exercise ? "✓" : "✗"}</td>
+                      <td className="p-2">{record.dietFollowed ? "✓" : "✗"}</td>
+                      <td className="p-2">{record.newWeight}</td>
+                      <td className="p-2">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleDeleteRecord(record.id)}
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 size={16} />
+                          <span className="sr-only">Delete record</span>
+                        </Button>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={6} className="p-4 text-center text-muted-foreground">
                         No records found
                       </td>
-                    </tr>}
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

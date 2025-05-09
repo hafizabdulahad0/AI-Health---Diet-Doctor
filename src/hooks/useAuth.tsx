@@ -1,188 +1,225 @@
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useToast } from "@/components/ui/use-toast";
-import { User, UserProfile } from '@/types';
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { UserProfile } from "@/types";
+import { useToast } from "./use-toast";
 
 interface AuthContextType {
-  user: User | null;
+  user: any | null;
   profile: UserProfile | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  signup: (userData: SignupData) => Promise<boolean>;
-  logout: () => void;
+  signup: (email: string, password: string, profileData: Partial<UserProfile>) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
   loading: boolean;
+  updateProfile: (updatedProfile: UserProfile) => void;
 }
 
-interface SignupData {
-  email: string;
-  password: string;
-  name: string;
-  age: number;
-  height: number;
-  weight: number;
-  gender: 'male' | 'female' | 'other';
-  disease?: string;
-  dietPreference: 'vegetarian' | 'non-vegetarian' | 'vegan';
-  budget: 'low' | 'medium' | 'high';
-  goal: 'weight loss' | 'weight gain' | 'maintenance';
-  cuisine: string;
-}
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  profile: null,
+  signup: async () => {},
+  login: async () => {},
+  logout: async () => {},
+  loading: true,
+  updateProfile: () => {},
+});
 
-// Mock data storage (in a real app, this would be an API)
-const USERS_KEY = 'health_app_users';
-const PROFILES_KEY = 'health_app_profiles';
+export const useAuth = () => useContext(AuthContext);
 
-const getStoredUsers = (): Record<string, User> => {
-  const stored = localStorage.getItem(USERS_KEY);
-  return stored ? JSON.parse(stored) : {};
-};
+const storedProfileKey = "health_app_profile";
 
-const getStoredProfiles = (): Record<string, UserProfile> => {
-  const stored = localStorage.getItem(PROFILES_KEY);
-  return stored ? JSON.parse(stored) : {};
-};
-
-// Create auth context
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
-  
-  // Check if user is logged in on page load
-  useEffect(() => {
-    const storedUserId = localStorage.getItem('currentUserId');
-    if (storedUserId) {
-      const users = getStoredUsers();
-      const profiles = getStoredProfiles();
-      
-      // Find user by ID
-      const currentUser = Object.values(users).find(u => u.id === storedUserId) || null;
-      const currentProfile = profiles[storedUserId] || null;
-      
-      setUser(currentUser);
-      setProfile(currentProfile);
-    }
-    
-    setLoading(false);
-  }, []);
-  
-  const login = async (email: string, password: string): Promise<boolean> => {
-    try {
-      // In a real app, this would be an API call
-      const users = getStoredUsers();
-      const userEntry = Object.entries(users).find(([_, user]) => user.email === email);
-      
-      if (!userEntry) {
-        toast({ title: "Login failed", description: "Invalid credentials", variant: "destructive" });
-        return false;
-      }
-      
-      // In a real app, we would check password hash
-      // For demo purposes, we skip password verification
-      
-      const currentUser = userEntry[1];
-      const profiles = getStoredProfiles();
-      const currentProfile = profiles[currentUser.id];
-      
-      if (!currentProfile) {
-        toast({ title: "Login failed", description: "Profile not found", variant: "destructive" });
-        return false;
-      }
-      
-      // Save user ID to localStorage
-      localStorage.setItem('currentUserId', currentUser.id);
-      
-      setUser(currentUser);
-      setProfile(currentProfile);
-      
-      toast({ title: "Login successful", description: `Welcome back, ${currentProfile.name}!` });
-      return true;
-    } catch (error) {
-      console.error("Login error:", error);
-      toast({ title: "Login failed", description: "An error occurred during login", variant: "destructive" });
-      return false;
-    }
-  };
-  
-  const signup = async (userData: SignupData): Promise<boolean> => {
-    try {
-      // In a real app, this would be an API call
-      const users = getStoredUsers();
-      
-      // Check if email exists
-      if (Object.values(users).some(u => u.email === userData.email)) {
-        toast({ title: "Signup failed", description: "Email already exists", variant: "destructive" });
-        return false;
-      }
-      
-      // Generate a new ID as a string
-      const newId = Date.now().toString();
-      
-      // Create a new user
-      const newUser: User = {
-        id: newId,
-        email: userData.email,
-      };
-      
-      // Create a new profile
-      const newProfile: UserProfile = {
-        id: newId,
-        userId: newId,
-        name: userData.name,
-        age: userData.age,
-        height: userData.height,
-        weight: userData.weight,
-        gender: userData.gender,
-        disease: userData.disease,
-        dietPreference: userData.dietPreference,
-        budget: userData.budget,
-        goal: userData.goal,
-        cuisine: userData.cuisine,
-      };
-      
-      // Save to localStorage
-      users[newId] = newUser;
-      localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      
-      const profiles = getStoredProfiles();
-      profiles[newId] = newProfile;
-      localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
-      
-      // Save user ID to localStorage
-      localStorage.setItem('currentUserId', newId);
-      
-      setUser(newUser);
-      setProfile(newProfile);
-      
-      toast({ title: "Signup successful", description: `Welcome, ${newProfile.name}!` });
-      return true;
-    } catch (error) {
-      console.error("Signup error:", error);
-      toast({ title: "Signup failed", description: "An error occurred during signup", variant: "destructive" });
-      return false;
-    }
-  };
-  
-  const logout = () => {
-    localStorage.removeItem('currentUserId');
-    setUser(null);
-    setProfile(null);
-    toast({ title: "Logged out successfully" });
-  };
-  
-  return (
-    <AuthContext.Provider value={{ user, profile, login, signup, logout, loading }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  useEffect(() => {
+    // Check for existing session
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session) {
+        setUser(data.session.user);
+        // Load profile from localStorage if available
+        const storedProfile = localStorage.getItem(storedProfileKey);
+        if (storedProfile) {
+          setProfile(JSON.parse(storedProfile));
+        }
+      }
+      setLoading(false);
+    };
+
+    checkSession();
+
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        setUser(session.user);
+        // Load profile from localStorage if available
+        const storedProfile = localStorage.getItem(storedProfileKey);
+        if (storedProfile) {
+          setProfile(JSON.parse(storedProfile));
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setProfile(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const signup = async (email: string, password: string, profileData: Partial<UserProfile>) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.user) {
+        const newProfile: UserProfile = {
+          userId: data.user.id,
+          name: profileData.name || "",
+          age: profileData.age || 0,
+          gender: profileData.gender || "",
+          height: profileData.height || 0,
+          weight: profileData.weight || 0,
+          goal: profileData.goal || "",
+          dietPreference: profileData.dietPreference || "",
+          fitnessLevel: profileData.fitnessLevel || "beginner",
+          disease: profileData.disease || "",
+          budget: profileData.budget || "medium",
+          cuisine: profileData.cuisine || "",
+        };
+
+        // Store profile in localStorage
+        localStorage.setItem(storedProfileKey, JSON.stringify(newProfile));
+        setProfile(newProfile);
+
+        navigate("/dashboard");
+      }
+    } catch (error) {
+      console.error("Error signing up:", error);
+      throw error;
+    }
+  };
+
+  const login = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.user) {
+        // Try to load profile from localStorage
+        const storedProfile = localStorage.getItem(storedProfileKey);
+        
+        if (storedProfile) {
+          const parsedProfile = JSON.parse(storedProfile);
+          // Check if the profile belongs to the logged in user
+          if (parsedProfile.userId === data.user.id) {
+            setProfile(parsedProfile);
+          } else {
+            // If not the same user, create a new empty profile
+            const newProfile: UserProfile = {
+              userId: data.user.id,
+              name: "",
+              age: 0,
+              gender: "",
+              height: 0,
+              weight: 0,
+              goal: "",
+              dietPreference: "",
+              fitnessLevel: "beginner",
+              disease: "",
+              budget: "medium",
+              cuisine: "",
+            };
+            localStorage.setItem(storedProfileKey, JSON.stringify(newProfile));
+            setProfile(newProfile);
+          }
+        } else {
+          // If no profile, create one
+          const newProfile: UserProfile = {
+            userId: data.user.id,
+            name: "",
+            age: 0,
+            gender: "",
+            height: 0,
+            weight: 0,
+            goal: "",
+            dietPreference: "",
+            fitnessLevel: "beginner",
+            disease: "",
+            budget: "medium",
+            cuisine: "",
+          };
+          localStorage.setItem(storedProfileKey, JSON.stringify(newProfile));
+          setProfile(newProfile);
+        }
+
+        navigate("/dashboard");
+      }
+    } catch (error) {
+      console.error("Error logging in:", error);
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setProfile(null);
+      navigate("/login");
+    } catch (error) {
+      console.error("Error logging out:", error);
+      toast({
+        title: "Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const updateProfile = (updatedProfile: UserProfile) => {
+    if (!user || !updatedProfile) return;
+    
+    // Ensure userId matches the logged in user
+    const profileToUpdate = {
+      ...updatedProfile,
+      userId: user.id,
+    };
+    
+    // Update profile in state
+    setProfile(profileToUpdate);
+    
+    // Save to localStorage
+    localStorage.setItem(storedProfileKey, JSON.stringify(profileToUpdate));
+  };
+
+  const value = {
+    user,
+    profile,
+    signup,
+    login,
+    logout,
+    loading,
+    updateProfile,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

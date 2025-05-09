@@ -26,13 +26,13 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <ApiKeyProvider>
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
+    <BrowserRouter>
+      <ThemeProvider>
+        <ApiKeyProvider>
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
               <div className="min-h-screen flex flex-col">
                 <NavBar />
                 <main className="flex-1">
@@ -52,11 +52,11 @@ const App = () => (
                   </Routes>
                 </main>
               </div>
-            </BrowserRouter>
-          </TooltipProvider>
-        </AuthProvider>
-      </ApiKeyProvider>
-    </ThemeProvider>
+            </TooltipProvider>
+          </AuthProvider>
+        </ApiKeyProvider>
+      </ThemeProvider>
+    </BrowserRouter>
   </QueryClientProvider>
 );
 

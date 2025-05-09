@@ -1,6 +1,5 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { ApiKeySettings } from '@/types';
 
 interface ApiKeyContextType {
   apiKey: string | null;

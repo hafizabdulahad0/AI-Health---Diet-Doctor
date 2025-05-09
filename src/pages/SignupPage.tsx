@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SignupPage() {
   const navigate = useNavigate();
   const { signup } = useAuth();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -42,20 +44,27 @@ export default function SignupPage() {
     setIsLoading(true);
     
     try {
-      const success = await signup({
-        ...formData,
+      const profileData = {
+        name: formData.name,
         age: parseInt(formData.age),
         height: parseFloat(formData.height),
         weight: parseFloat(formData.weight),
         gender: formData.gender as 'male' | 'female' | 'other',
+        disease: formData.disease,
         dietPreference: formData.dietPreference as 'vegetarian' | 'non-vegetarian' | 'vegan',
         budget: formData.budget as 'low' | 'medium' | 'high',
         goal: formData.goal as 'weight loss' | 'weight gain' | 'maintenance',
-      });
+        cuisine: formData.cuisine,
+      };
       
-      if (success) {
-        navigate("/dashboard");
-      }
+      await signup(formData.email, formData.password, profileData);
+      // If signup doesn't throw an error, it was successful
+    } catch (error) {
+      toast({
+        title: "Signup Failed",
+        description: error instanceof Error ? error.message : "Please check your inputs and try again",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
