@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 // Hardcoded API key - in production, this should be a secret
-const OPENAI_API_KEY = "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";
+const OPENAI_API_KEY = "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";
 
 serve(async (req) => {
   // Handle CORS preflight requests
